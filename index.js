@@ -104,10 +104,10 @@ const parseResult = (data) => {
 
         if (_.size(logArr) > 1) {
           tempObj = JSON.parse(logArr[1].trim());
-          trxObj = tempObj;
-          trxObj.warehouseCode = trxObj.warehouseCode || '';
-          trxObj.orderNumber = trxObj.orderNumber || '';
-          result.push(_.extend(trxObj, { timestamp: timestamp }));
+          tempObj.warehouseCode = tempObj.warehouseCode || '';
+          tempObj.orderNumber = tempObj.orderNumber || '';
+          trxObj = { timestamp: timestamp };
+          result.push(_.extend(trxObj, tempObj));
         }
       });
       res(result);
@@ -120,7 +120,8 @@ const parseResult = (data) => {
 //Writes a json array to csv
 const writeToCSV = (jsonArr, fileName) => {
   return new Promise((res, rej) => {
-    let keys = _.keys(jsonArr[0]), size = _.size(jsonArr);
+    let keys = _.keys(jsonArr[0]),
+      size = _.size(jsonArr);
     json2csv({ data: jsonArr, fields: keys }, (err, csv) => {
       if (err) console.log(err);
       fs.writeFile(fileName + '.csv', csv, (err) => {
@@ -144,10 +145,9 @@ getProcessArg(2)
   })
   .then((c) => {
     endDate = moment(c).utc().endOf('day').toISOString() || "2016-05-27T23:59:00+00:00";
-    console.log(startDate, endDate)
   })
   .then(() => {
-      return makeRequest(getOpt())
+    return makeRequest(getOpt())
   })
   .then((a) => {
     return parseResult(a);

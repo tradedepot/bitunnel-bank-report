@@ -5,7 +5,8 @@ It uses ES6 promise.
 
 *ENV Variables*
 
-```process.env.ES_URL 
+```
+  process.env.ES_URL 
   process.env.ES_USER
   process.env.ES_PASS
 ```

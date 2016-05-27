@@ -10,7 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "json2csv": "^3.4.2",
-    "momentjs": "^1.1.7",
+    "moment": "^2.13.0",
     "request": "^2.72.0",
     "underscore": "^1.8.3"
   }

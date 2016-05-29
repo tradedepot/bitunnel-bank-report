@@ -106,6 +106,7 @@ const parseResult = (data) => {
           tempObj = JSON.parse(logArr[1].trim());
           tempObj.warehouseCode = tempObj.warehouseCode || '';
           tempObj.orderNumber = tempObj.orderNumber || '';
+          delete tempObj.transactionID;
           trxObj = { timestamp: timestamp };
           result.push(_.extend(trxObj, tempObj));
         }
@@ -140,23 +141,26 @@ getProcessArg(2)
     return getProcessArg(3)
   })
   .then((b) => {
-    startDate = moment(b).startOf('day').toISOString() || "2016-05-27T09:00:00+00:00";
+    startDate = moment(b).local().startOf('day').toISOString() || "1970-01-01T00:00:00+00:00";
     return getProcessArg(4)
   })
   .then((c) => {
-    endDate = moment(c).utc().endOf('day').toISOString() || "2016-05-27T23:59:00+00:00";
+    c = c || startDate;
+    endDate = moment(c).local().endOf('day').toISOString() || "2099-12-31T23:59:00+00:00";
+    return `Generating report for ${sourceName} from ${startDate} to ${endDate}`;
   })
-  .then(() => {
+  .then((d) => {
+    console.log(`\n----------------------\n ${d} \n------------------------\n`);
     return makeRequest(getOpt())
   })
-  .then((a) => {
-    return parseResult(a);
+  .then((d) => {
+    return parseResult(d);
   })
-  .then((b) => {
-    return writeToCSV(b, `${sourceName}-middleware-report`);
+  .then((f) => {
+    return writeToCSV(f, `${sourceName}-middleware-report`);
   })
-  .then((c) => {
-    console.log(c);
+  .then((g) => {
+    console.log(`${g} \n=============================\n`);
   })
   .catch((e) => {
     console.log(e);

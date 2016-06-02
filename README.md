@@ -22,10 +22,17 @@ Clone
 
 Usage
 ```
-	node index.js `bank-name` `start-date` `end-date`
-```
-Eg To generate transactions for 23 and 24 feb, 2016
-```
-	node index.js nibss 2016-02-23 2016-02-24 
+	node index.js `report-type` `bank-name` `start-date` `end-date`
 ```
 
+Examples
+
+To generate NIBSS transaction report (BANK-NAV) for 28 and 29 May, 2016
+```
+	node index.js bank nibss 2016-06-28 2016-06-29
+```
+
+To generate FIRST transaction reports (NAV-TDC) for 28 and 29 May, 2016
+```
+	node index.js nav nibss 2016-05-28 2016-05-29
+```

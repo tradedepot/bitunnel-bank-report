@@ -141,7 +141,12 @@ const parseNAVResult = (data) => {
           logArr = log.split('navtdctransaction');
         if (_.size(logArr) > 1) {
           tempObj = JSON.parse(logArr[1].trim());
+          let narrationArr = tempObj.narration.split('|');
+          tempObj.navDocumentNo = tempObj.originDocumentNo;
+          tempObj.customer = narrationArr[1].trim();
+          tempObj.reference = narrationArr[0].trim();
           delete tempObj.currency;
+          delete tempObj.originDocumentNo;
           delete tempObj.postingDate;
           delete tempObj.transactionType;
           trxObj = { timestamp: timestamp };

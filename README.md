@@ -30,9 +30,11 @@ Examples
 To generate NIBSS transaction report (BANK-NAV) for 28 and 29 May, 2016
 ```
 	node index.js bank nibss 2016-06-28 2016-06-29
+	node index.js bank fbn 2016-06-28 2016-06-29
 ```
 
 To generate FIRST transaction reports (NAV-TDC) for 28 and 29 May, 2016
 ```
 	node index.js nav nibss 2016-05-28 2016-05-29
+	node index.js nav fbn 2016-05-28 2016-05-29
 ```

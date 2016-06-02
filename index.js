@@ -1,19 +1,14 @@
 'use strict';
 
-let json2csv = require('json2csv'),
-  fs = require('fs'),
-  request = require('request'),
+let lib = require("./lib"),
   _ = require('underscore'),
-  moment = require('moment'),
-  sourceName,
+  reportType, sourceName,
   mustNot, must,
   startDate, endDate;
 
-const getProcessArg = (i) => {
-  return new Promise((r) => { r(process.argv[i]) });
-}
+const getBankQuery = (sourceName) => {
+  sourceName = sourceName || 'nibss';
 
-const getQuery = () => {
   switch (sourceName) {
     case 'fbn':
       must = "api.tradedepot.io";
@@ -58,43 +53,58 @@ const getQuery = () => {
   }
 }
 
-// construct query data;
-const getOpt = () => {
+const getNAVQuery = (sourceName) => {
+  sourceName = sourceName || 'nibss';
+
+  switch (sourceName) {
+    case 'fbn':
+      must = "First";
+      mustNot = "Default";
+      break;
+    case 'nibss':
+    default:
+      must = "Default";
+      mustNot = "First";
+  }
+
   return {
-    url: process.env.ES_URL || 'localhost:9201',
-    method: 'POST',
-    auth: {
-      'user': process.env.ES_USER || 'user',
-      'pass': process.env.ES_PASS || 'secret',
-      'sendImmediately': false
-    },
-    body: getQuery(),
-    json: true,
-    strictSSL: false
+    "from": 0,
+    "size": 1000,
+    "sort": [{
+      "@timestamp": { "order": "desc" }
+    }],
+    "query": {
+      "bool": {
+        "must": [
+          { "match": { "log": "navtdctransaction" } },
+          { "match": { "log": "CamelHttpMethod=POST" } },
+          { "match": { "log": must } },
+          { "match": { "kubernetes.container_name": "bitunnel*png" } }, {
+            "range": {
+              "@timestamp": {
+                "gte": startDate,
+                "lte": endDate
+              }
+            }
+          }
+        ],
+        "must_not": [
+          { "match": { "log": mustNot } }
+        ],
+        "should": [
+          { "match": { "log": "BNK-" } }
+        ]
+      }
+    }
   }
 }
 
-/*
- * Lib
- */
-//make http request
-const makeRequest = (opt) => {
-  return new Promise((res, rej) => {
-    request(opt, (error, response, body) => {
-      if (!error) {
-        res(body);
-      } else {
-        rej(error);
-      }
-    })
-  })
-}
 
-// Parse result to requested format
-const parseResult = (data) => {
+// Parse BANK to NAV result to requested format
+const parseBankResult = (data) => {
   return new Promise((res, rej) => {
     let result = []
-    if (data) {
+    if (data && data.hits) {
       data = data.hits.hits;
       _.each(data, (d) => {
         let tempObj, trxObj, source = d._source,
@@ -118,46 +128,61 @@ const parseResult = (data) => {
   })
 }
 
-//Writes a json array to csv
-const writeToCSV = (jsonArr, fileName) => {
+// Parse NAV to TDC  result to requested format
+const parseNAVResult = (data) => {
   return new Promise((res, rej) => {
-    let keys = _.keys(jsonArr[0]),
-      size = _.size(jsonArr);
-    json2csv({ data: jsonArr, fields: keys }, (err, csv) => {
-      if (err) console.log(err);
-      fs.writeFile(fileName + '.csv', csv, (err) => {
-        if (err) rej(err);
-        res(`${size} records saved as  ${fileName}.csv`);
+    let result = []
+    if (data && data.hits) {
+      data = data.hits.hits;
+      _.each(data, (d) => {
+        let tempObj, trxObj, source = d._source,
+          timestamp = source['@timestamp'],
+          log = source.log,
+          logArr = log.split('navtdctransaction');
+        if (_.size(logArr) > 1) {
+          tempObj = JSON.parse(logArr[1].trim());
+          delete tempObj.currency;
+          delete tempObj.postingDate;
+          delete tempObj.transactionType;
+          trxObj = { timestamp: timestamp };
+          result.push(_.extend(trxObj, tempObj));
+        }
       });
-    });
+      res(result);
+    } else {
+      rej(data);
+    }
   })
 }
 
-
 //Synchronously perform all operations
-getProcessArg(2)
+lib.getProcessArg(2)
   .then((a) => {
-    sourceName = a || "nibss";
-    return getProcessArg(3)
+    reportType = a;
+    return lib.getProcessArg(3)
+  })
+  .then((a) => {
+    sourceName = a;
+    return lib.getProcessArg(4)
   })
   .then((b) => {
-    startDate = moment(b).local().startOf('day').toISOString() || "1970-01-01T00:00:00+00:00";
-    return getProcessArg(4)
+    startDate = lib.getDates(b, 'start');
+    return lib.getProcessArg(5)
   })
   .then((c) => {
     c = c || startDate;
-    endDate = moment(c).local().endOf('day').toISOString() || "2099-12-31T23:59:00+00:00";
-    return `Generating report for ${sourceName} from ${startDate} to ${endDate}`;
+    endDate = lib.getDates(c, 'end');
+    return `Generating ${reportType} report for ${sourceName} from ${startDate} to ${endDate}`;
   })
   .then((d) => {
     console.log(`\n----------------------\n ${d} \n------------------------\n`);
-    return makeRequest(getOpt())
+    return lib.makeRequest(lib.getOpt(reportType === "bank" ? getBankQuery(sourceName) : getNAVQuery(sourceName)))
   })
   .then((d) => {
-    return parseResult(d);
+    return reportType === "bank" ? parseBankResult(d) : parseNAVResult(d);
   })
   .then((f) => {
-    return writeToCSV(f, `${sourceName}-middleware-report`);
+    return lib.writeToCSV(f, `${sourceName}-middleware-${reportType}-report`);
   })
   .then((g) => {
     console.log(`${g} \n=============================\n`);
